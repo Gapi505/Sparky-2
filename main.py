@@ -10,11 +10,30 @@ import os
 
 load_dotenv()
 
-TOKEN = os.getenv("BOT_TOKEN")
 
+# Discord bot prequisites
+TOKEN = os.getenv("BOT_TOKEN")
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = discord.Client(intents=intents)
+
+
+# Global variables
 llm = None
 
+#templates
+prompt_templates = None
+system_prompts = None
+with open("templates/prompt_templates.yaml", "r") as file:
+    prompt_templates = yaml.safe_load(file)
+with open("templates/system_prompts.yaml", "r") as file:
+    system_prompts = yaml.safe_load(file)
 
+prompt_template = prompt_templates["template"]
+message_template = prompt_templates["message"]
+
+# Generation parameters
 stops = ["<|eot_id|>", "<|end_of_text|>"]
 generation_kwargs = {
     "max_tokens": 450,
@@ -24,7 +43,7 @@ generation_kwargs = {
     "stop": stops,
 }
 
-
+# Frees up mamory from the GPU and RAM
 def free_memory():
     global llm
     
@@ -32,6 +51,7 @@ def free_memory():
     gc.collect()
     torch.cuda.empty_cache()
 
+# Loads the model
 def load_llm():
     free_memory()
     global llm
@@ -45,6 +65,7 @@ def load_llm():
             verbose=True,
         )
 
+# Returns the response from the model
 def llm_response(prompt):
     global llm
     if llm is None:
@@ -53,10 +74,64 @@ def llm_response(prompt):
     response =  llm(prompt, **generation_kwargs)
     return response["choices"][0]["text"]
 
+async def handle_messages(message):
+    channel = message.channel
 
-def main():
-    load_llm()
-    print(llm_response("What is the meaning of life?"))
+    history_length = 30
+    messages = []
 
-if __name__ == "__main__":
-    main()
+    async for message in channel.history(limit=history_length):
+        if message.author == client.user:
+            templated_message = message_template.format(user="assistant", user_message=message.content)
+            continue
+
+        templated_message = message_template.format(user=message.author.name, user_message=message.content)
+
+
+        if message.content == "!split":
+            break
+
+        messages.append(templated_message)
+    
+    messages.reverse()
+    messages = "".join(messages)
+    print("messages: \n\n",messages)
+    return messages
+
+def construct_prompt(messages):
+    system_prompt = system_prompts["default"]
+    return prompt_template.format(system_prompt=system_prompt,messages=messages)
+
+async def text_pipeline(message):
+    messages = await handle_messages(message)
+    prompt = construct_prompt(messages)
+    response = llm_response(prompt)
+    print("response: \n\n",response)
+    await message.channel.send(response)
+    return response
+
+
+
+def handle_prefix(message):
+    prefix = message.content.split(" ")[0]
+    if prefix == "!s":
+        return True
+    return False
+
+# Discord bot
+@client.event
+async def on_ready():
+    print(f"We have logged in as {client.user}")
+
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+
+    if handle_prefix(message):
+        #await message.channel.send("Hello. Currently under maintenance. Please wait a moment.")
+        await text_pipeline(message)
+
+
+
+client.run(TOKEN)
