@@ -99,16 +99,19 @@ async def handle_messages(message):
     return messages
 
 def construct_prompt(messages):
-    system_prompt = system_prompts["default"]
+    with open("templates/system_prompts.yaml", "r") as file:
+        system_prompts = yaml.safe_load(file)
+    system_prompt = system_prompts["default"] + "\n" + system_prompts["users"]
     return prompt_template.format(system_prompt=system_prompt,messages=messages)
 
 async def text_pipeline(message):
-    messages = await handle_messages(message)
-    prompt = construct_prompt(messages)
-    response = llm_response(prompt)
-    print("response: \n\n",response)
-    await message.channel.send(response)
-    return response
+    async with message.channel.typing():
+        messages = await handle_messages(message)
+        prompt = construct_prompt(messages)
+        response = llm_response(prompt)
+        print("response: \n\n",response)
+        await message.channel.send(response)
+        return response
 
 
 
