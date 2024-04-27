@@ -61,7 +61,7 @@ def load_llm():
             "QuantFactory/Meta-Llama-3-8B-Instruct-GGUF",
             filename="*Q4_K_M.gguf",
             n_gpu_layers=-1,
-            n_ctx=8192,
+            n_ctx=10240,
             verbose=True,
         )
 
@@ -77,7 +77,7 @@ def llm_response(prompt):
 async def handle_messages(message):
     channel = message.channel
 
-    history_length = 30
+    history_length = 20
     messages = []
 
     async for message in channel.history(limit=history_length):
