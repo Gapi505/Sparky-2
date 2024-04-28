@@ -92,7 +92,7 @@ async def handle_messages(message):
     channel = message.channel
 
     token_count = 0
-    history_length = 100
+    history_length = 500
     messages = []
 
     async for message in channel.history(limit=history_length):
@@ -125,7 +125,7 @@ def construct_prompt(messages):
         system_prompts = yaml.safe_load(file)
     system_prompt = system_prompts["default"] + "\n" + system_prompts["users"]
 
-    max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt)
+    max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt) - 500
 
     return prompt_template.format(system_prompt=system_prompt,messages=messages)
 
