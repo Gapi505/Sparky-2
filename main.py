@@ -133,7 +133,10 @@ async def text_pipeline(message):
     async with message.channel.typing():
         start_time = time.time()
         checkpoints = {}
-        
+        if llm is None:
+            load_llm()
+            checkpoints["load_llm"] = time.time()
+
         messages = await handle_messages(message)
         checkpoints["messages"] = time.time()
 
@@ -162,7 +165,6 @@ def handle_prefix(message):
 @client.event
 async def on_ready():
     print(f"We have logged in as {client.user}")
-    load_llm()
 
 @client.event
 async def on_message(message):
