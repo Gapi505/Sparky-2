@@ -5,6 +5,7 @@ Sparky 2.0 is now powered by the Llama 3 model. but can be changed easily becaus
 ## Installation
 To install you have to:
 * Clone the repo
+* Create a conda environment and activate it
 * Install the requirements:
   * pytorch (CUDA support recommended)
   * python-llama-cpp (Install with CUDA support. If you don't know how - look it up)
