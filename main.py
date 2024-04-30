@@ -1,5 +1,7 @@
+from diffusers import StableDiffusionPipeline, UniPCMultistepScheduler
 from llama_cpp import Llama
 from dotenv import load_dotenv
+import random
 import asyncio
 import discord
 import torch
@@ -21,7 +23,8 @@ client = discord.Client(intents=intents)
 
 
 # Global variables
-llm = None
+llm = None#
+diff = None
 
 #templates
 prompt_templates = None
@@ -54,9 +57,10 @@ def timing(start_time, checkpoints):
 
 # Frees up mamory from the GPU and RAM
 def free_memory():
-    global llm
+    global llm, diff
     
     llm = None
+    diff = None
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -74,6 +78,17 @@ def load_llm():
             verbose=True,
         )
 
+def load_diff():
+    free_memory()
+    global diff
+    if diff is None:
+        diff = StableDiffusionPipeline.from_pretrained(
+            "Lykon/DreamShaper",
+            torch_dtype=torch.float16
+        )
+        diff.scheduler = UniPCMultistepScheduler.from_config(diff.scheduler.config)
+        diff = diff.to("cuda")
+
 # Returns the response from the model
 def llm_response(prompt):
     global llm
@@ -83,16 +98,25 @@ def llm_response(prompt):
     response =  llm(prompt, **generation_kwargs)
     return response["choices"][0]["text"]
 
+def diff_response(prompt):
+    global diff
+    if diff is None:
+        load_diff()
+    
+    generator = torch.manual_seed(random.randint(0, 2**32 - 1))
+    image = diff(prompt, generator=generator, num_inference_steps=15).images[0]
+    image.save("image.png")
+
+    return image
 
 def count_tokens(text):
     tokens = llm.tokenize(text.encode())
     return len(tokens)
 
-async def handle_messages(message):
+async def handle_messages(message, history_length=500):
     channel = message.channel
 
     token_count = 0
-    history_length = 500
     messages = []
 
     async for message in channel.history(limit=history_length):
@@ -152,14 +176,42 @@ async def text_pipeline(message):
 
         timing(start_time, checkpoints)
         return response
+    
+async def manual_image_pipeline(message):
+    async with message.channel.typing():
+        start_time = time.time()
+        checkpoints = {}
+        if diff is None:
+            load_diff()
+            checkpoints["load_diff"] = time.time()
+
+        prompt = " ".join(message.content.split(" ")[1:])
+        checkpoints["prompt"] = time.time()
+        print("prompt: ",prompt)
+
+        diff_response(prompt)
+        checkpoints["response"] = time.time()
+
+        await message.channel.send(file=discord.File("image.png"))
+        checkpoints["send"] = time.time()
+
+        load_llm()
+        checkpoints["free and load_llm"] = time.time()
+
+        timing(start_time, checkpoints)
 
 
 
 def handle_prefix(message):
-    prefix = message.content.split(" ")[0]
+    prefix = message.content.split(" ")[0].lower()
     if prefix == "!s":
-        return True
-    return False
+        return "!s"
+    elif prefix == "!i":
+        return "!i"
+    elif prefix == "!im":
+        return "!im"
+    else:
+        return None
 
 # Discord bot
 @client.event
@@ -171,9 +223,10 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if handle_prefix(message):
-        #await message.channel.send("Hello. Currently under maintenance. Please wait a moment.")
+    if handle_prefix(message) == "!s": # Normal text generation
         await text_pipeline(message)
+    elif handle_prefix(message) == "!im": # Manual image generation
+        await manual_image_pipeline(message)
 
 
 

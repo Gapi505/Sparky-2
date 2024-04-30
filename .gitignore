@@ -1,2 +1,5 @@
 .env
 .conda
+tests/
+image.png
+images/
