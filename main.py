@@ -152,7 +152,7 @@ def construct_prompt(messages):
     global max_message_tokens
     with open("templates/system_prompts.yaml", "r") as file:
         system_prompts = yaml.safe_load(file)
-    system_prompt = system_prompts["default"] + "\n" + system_prompts["users"] + "\n" + system_prompts["functions"]
+    system_prompt = system_prompts["behaviour"] + system_prompts["personality"] + system_prompts["users"] + system_prompts["functions"]
 
     max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt) - 500
 
@@ -168,9 +168,9 @@ def construct_prompt(messages):
 
 async def handle_functions(response, message):
     #find curly brackets
-    start = response.find("[[") 
-    end = response.find("]]")
-    slice = response[start+2:end]
+    start = response.find("[[[") 
+    end = response.find("]")
+    slice = response[start+3:end]
     
     function = slice.split(" ")[0].lower()
     args = slice.split(" ")[1:]
