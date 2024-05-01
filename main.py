@@ -22,9 +22,14 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 
-# Global variables
+# models
 llm = None#
 diff = None
+
+#globals
+bot_message = False
+bot_message_count = 0
+bot_message_limit = 5
 
 #templates
 prompt_templates = None
@@ -147,11 +152,37 @@ def construct_prompt(messages):
     global max_message_tokens
     with open("templates/system_prompts.yaml", "r") as file:
         system_prompts = yaml.safe_load(file)
-    system_prompt = system_prompts["default"] + "\n" + system_prompts["users"]
+    system_prompt = system_prompts["default"] + "\n" + system_prompts["users"] + "\n" + system_prompts["functions"]
 
     max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt) - 500
 
     return prompt_template.format(system_prompt=system_prompt,messages=messages)
+
+
+# functions are in the middle of the llm response
+# they are in a format like this:
+# the whole function is sorounded by double square brackets
+# [[function_name arg1 arg2 arg3 ...]]
+
+
+
+async def handle_functions(response, message):
+    #find curly brackets
+    start = response.find("[[") 
+    end = response.find("]]")
+    slice = response[start+2:end]
+    
+    function = slice.split(" ")[0].lower()
+    args = slice.split(" ")[1:]
+    print("function: ",function)
+    print("args: ",args)
+    match function:
+        case "img":
+            diff_response(" ".join(args))
+            await message.channel.send(file=discord.File("image.png"))
+        case _:
+            return None
+    
 
 async def text_pipeline(message):
     async with message.channel.typing():
@@ -173,6 +204,9 @@ async def text_pipeline(message):
         print("response: \n\n",response)
         await message.channel.send(response)
         checkpoints["send"] = time.time()
+
+        await handle_functions(response, message)
+        checkpoints["functions"] = time.time()
 
         timing(start_time, checkpoints)
         return response
@@ -208,8 +242,8 @@ def handle_prefix(message):
         return "!s"
     elif prefix == "!i":
         return "!i"
-    elif prefix == "!im":
-        return "!im"
+    elif prefix == "!img":
+        return "!img"
     else:
         return None
 
@@ -221,11 +255,11 @@ async def on_ready():
 @client.event
 async def on_message(message):
     if message.author == client.user:
-        return
+        bot_message = True
 
     if handle_prefix(message) == "!s": # Normal text generation
         await text_pipeline(message)
-    elif handle_prefix(message) == "!im": # Manual image generation
+    elif handle_prefix(message) == "!img": # Manual image generation
         await manual_image_pipeline(message)
 
 
