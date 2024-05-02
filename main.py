@@ -18,6 +18,7 @@ load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 client = discord.Client(intents=intents)
 
@@ -30,6 +31,7 @@ diff = None
 bot_message = False
 bot_message_count = 0
 bot_message_limit = 5
+user_cache = {}
 
 #templates
 prompt_templates = None
@@ -76,7 +78,7 @@ def load_llm():
     
     if llm is None:
         llm = Llama.from_pretrained(
-            "QuantFactory/Meta-Llama-3-8B-Instruct-GGUF",
+            "Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF",
             filename="*Q4_K_M.gguf",
             n_gpu_layers=-1,
             n_ctx=8192,
@@ -89,9 +91,11 @@ def load_diff():
     if diff is None:
         diff = StableDiffusionPipeline.from_pretrained(
             "Lykon/DreamShaper",
-            torch_dtype=torch.float16
+            torch_dtype=torch.float16,
+            safety_checker = None,
+            requires_safety_checker = False
         )
-        diff.scheduler = UniPCMultistepScheduler.from_config(diff.scheduler.config)
+        diff.scheduler = UniPCMultistepScheduler.from_config(diff.scheduler.config) 
         diff = diff.to("cuda")
 
 # Returns the response from the model
@@ -114,6 +118,41 @@ def diff_response(prompt):
 
     return image
 
+
+async def get_user(uid, message):
+    # Convert uid to int
+    uid = int(uid)
+
+    # If the user is in the cache, return it
+    if uid in user_cache:
+        return user_cache[uid]
+
+    # Otherwise, fetch the user and add it to the cache
+    user = await message.channel.guild.fetch_member(uid)
+    user_cache[uid] = user
+    return user
+
+async def parse_message_content(message):
+    # ping format <@661591351581999187>
+    content = message.content
+    while "<@" in content:
+        start = content.find("<@")
+        end = content.find(">")
+        ping = content[start:end+1]
+        uid = ping[2:-1]
+
+        user = await get_user(uid, message)
+        username = "user"
+        nickname = "nick"
+        if user is not None:
+            username = user.name
+            nickname = user.nick if user.nick is not None else username
+
+        fping = f"@{username} ({nickname})"
+        
+        content = content[:start] + fping + content[end+1:]
+    return content
+
 def count_tokens(text):
     tokens = llm.tokenize(text.encode())
     return len(tokens)
@@ -125,10 +164,12 @@ async def handle_messages(message, history_length=500):
     messages = []
 
     async for message in channel.history(limit=history_length):
+        message_content = await parse_message_content(message)
         if message.author == client.user:
-            templated_message = message_template.format(user="assistant", user_message=message.content)
+            templated_message = message_template.format(user="assistant", user_message=message_content)
         else:
-            templated_message = message_template.format(user=message.author.name, user_message=message.content)
+            name = f"{message.author.name} ({message.author.nick if message.author.nick is not None else message.author.name})"
+            templated_message = message_template.format(user=name, user_message=message_content)
         token_count += count_tokens(templated_message)
         if token_count > max_message_tokens:
             print("token count: ",token_count)
@@ -171,9 +212,9 @@ def construct_prompt(messages):
 
 async def handle_functions(response, message):
     #find curly brackets
-    start = response.find("[[[") 
+    start = response.find("[") 
     end = response.find("]")
-    slice = response[start+3:end]
+    slice = response[start+1:end]
     
     function = slice.split(" ")[0].lower()
     args = slice.split(" ")[1:]

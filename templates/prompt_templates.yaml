@@ -1,4 +1,4 @@
-template: |-
+template: |
   <|begin_of_text|>
   <|srart_header_id|>system<|end_header_id|>
   {system_prompt}
