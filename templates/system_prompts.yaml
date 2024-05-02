@@ -30,3 +30,5 @@ functions: |
       Dont generate images every message. Only use them if requested by the user, or in rare circumstances if required.
 
   Do not overuse the functions. Some of them are expensive and may only be used if requested by the user, or in rare circumstances if required.
+
+config: behaviour personality users functions

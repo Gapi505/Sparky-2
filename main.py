@@ -143,7 +143,6 @@ async def handle_messages(message, history_length=500):
     messages.reverse()
     print("message count: ",len(messages))
     messages = "".join(messages)
-    print("messages: \n\n",messages)
     print("max token count: ",max_message_tokens)
     print("token count: ",token_count, "\n\n")
     return messages
@@ -152,7 +151,11 @@ def construct_prompt(messages):
     global max_message_tokens
     with open("templates/system_prompts.yaml", "r") as file:
         system_prompts = yaml.safe_load(file)
-    system_prompt = system_prompts["behaviour"] + system_prompts["personality"] + system_prompts["users"] + system_prompts["functions"]
+    
+    config = system_prompts["config"].split(" ")
+    system_prompt = ""
+    for subprompt in config:
+        system_prompt += system_prompts[subprompt]
 
     max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt) - 500
 
@@ -196,6 +199,7 @@ async def text_pipeline(message):
         checkpoints["messages"] = time.time()
 
         prompt = construct_prompt(messages)
+        print("prompt: \n",prompt)
         checkpoints["prompt"] = time.time()
 
         response = llm_response(prompt)
