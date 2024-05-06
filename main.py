@@ -24,7 +24,7 @@ client = discord.Client(intents=intents)
 
 
 # models
-llm = None#
+llm = None
 diff = None
 
 #globals
@@ -36,9 +36,10 @@ user_cache = {}
 #templates
 prompt_templates = None
 system_prompts = None
+system_prompts_filename = "templates/system_prompts_sfw.yaml"
 with open("templates/prompt_templates.yaml", "r") as file:
     prompt_templates = yaml.safe_load(file)
-with open("templates/system_prompts.yaml", "r") as file:
+with open(system_prompts_filename, "r") as file:
     system_prompts = yaml.safe_load(file)
 
 prompt_template = prompt_templates["template"]
@@ -166,7 +167,7 @@ async def handle_messages(message, history_length=500):
     async for message in channel.history(limit=history_length):
         message_content = await parse_message_content(message)
         if message.author == client.user:
-            templated_message = message_template.format(user="assistant", user_message=message_content)
+            templated_message = message_template.format(user="assistant (Sparky)", user_message=message_content)
         else:
             name = f"{message.author.name} ({message.author.nick if message.author.nick is not None else message.author.name})"
             templated_message = message_template.format(user=name, user_message=message_content)
@@ -190,13 +191,13 @@ async def handle_messages(message, history_length=500):
 
 def construct_prompt(messages):
     global max_message_tokens
-    with open("templates/system_prompts.yaml", "r") as file:
+    with open(system_prompts_filename, "r") as file:
         system_prompts = yaml.safe_load(file)
     
     config = system_prompts["config"].split(" ")
     system_prompt = ""
     for subprompt in config:
-        system_prompt += system_prompts[subprompt]
+        system_prompt += system_prompts[subprompt] + "\n"
 
     max_message_tokens = n_ctx - generation_kwargs["max_tokens"] - 1 - count_tokens(system_prompt) - 500
 
@@ -205,8 +206,8 @@ def construct_prompt(messages):
 
 # functions are in the middle of the llm response
 # they are in a format like this:
-# the whole function is sorounded by double square brackets
-# [[function_name arg1 arg2 arg3 ...]]
+# the whole function is sorounded by square brackets
+# [function_name arg1 arg2 arg3 ...]
 
 
 
