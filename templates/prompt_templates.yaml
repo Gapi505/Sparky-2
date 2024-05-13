@@ -4,7 +4,7 @@ template: |
   {system_prompt}
   <|eot_id|>
   {messages}
-  <|start_header_id|>assistant (Spyrky)<|end_header_id|>
+  <|start_header_id|>assistant (Sparky)<|end_header_id|>
 
 message: |
   <|start_header_id|>{user}<|end_header_id|>
