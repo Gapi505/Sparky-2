@@ -173,10 +173,11 @@ async def handle_messages(message, history_length=500):
 
     async for message in channel.history(limit=history_length):
         message_content = await parse_message_content(message)
+        author = message.author
         if message.author == client.user:
             templated_message = message_template.format(user="assistant (Sparky)", user_message=message_content)
         else:
-            name = f'{message.author.name} ({message.author.nick if message.author.nick is not None else message.author.name})'
+            name = f'{message.author.name} ({author.nick if author.nick is not None else author.name})'
             templated_message = message_template.format(user=name, user_message=message_content)
         token_count += count_tokens(templated_message)
         if token_count > max_message_tokens:
@@ -313,8 +314,8 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
-        bot_message = True
+    # if message.author == client.user:
+    #     bot_message = True
 
     if handle_prefix(message) == "!s":  # Normal text generation
         await text_pipeline(message)
