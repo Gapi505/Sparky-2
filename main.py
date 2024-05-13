@@ -33,7 +33,7 @@ user_cache = {}
 # templates
 
 
-system_prompts_filename = "templates/system_prompts_sfw.yaml"
+system_prompts_filename = "templates/system_prompts.yaml"
 with open("templates/prompt_templates.yaml", "r") as file:
     prompt_templates = yaml.safe_load(file)
 with open(system_prompts_filename, "r") as file:
