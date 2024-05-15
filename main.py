@@ -25,10 +25,8 @@ llm = None
 diff = None
 
 # globals
-bot_message = False
-bot_message_count = 0
-bot_message_limit = 5
-user_cache = {}
+
+recent_users = {}
 
 # templates
 
@@ -296,18 +294,36 @@ async def manual_image_pipeline(message):
 
 def handle_prefix(message):
     prefix = message.content.split(" ")[0].lower()
+    if prefix == "!split":
+        return "split"
+    if message.channel.name == "natural-chat" and message.author != client.user:
+        return "normal"
     if prefix == "!s":
-        return "!s"
-    elif prefix == "!i":
-        return "!i"
+        return "normal"
     elif prefix == "!img":
-        return "!img"
+        return "img"
     elif prefix == "!freemem" and message.author.name == "gapi505":
-        return "!freemem"
+        return "freemem"
     elif prefix == "!load" and message.author.name == "gapi505":
-        return "!load"
+        return "load"
     else:
         return None
+
+
+# def spam_prevention(message):
+#     global recent_users
+#     # recent users: dict user: (time, count)
+#     if message.author not in recent_users:
+#         recent_users[message.author] = (time.time(), 1)
+#         return False
+#     else:
+#         time_diff = time.time() - recent_users[message.author][0]
+#         if time_diff < 5:
+#             recent_users[message.author] = (time.time(), recent_users[message.author][1] + 1)
+#             return True
+#         else:
+#             recent_users[message.author] = (time.time(), 1)
+#             return False
 
 
 # Discord bot
@@ -320,14 +336,15 @@ async def on_ready():
 async def on_message(message):
     # if message.author == client.user:
     #     bot_message = True
+    handled = handle_prefix(message)
 
-    if handle_prefix(message) == "!s":  # Normal text generation
+    if handled == "normal":  # Normal text generation
         await text_pipeline(message)
-    elif handle_prefix(message) == "!img":  # Manual image generation
+    elif handled == "img":  # Manual image generation
         await manual_image_pipeline(message)
-    elif handle_prefix(message) == "!freemem":  # Free memory
+    elif handled == "freemem":  # Free memory
         free_memory()
-    elif handle_prefix(message) == "!load":  # Load the model
+    elif handled == "load":  # Load the model
         load_llm()
 
 
