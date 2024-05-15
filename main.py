@@ -302,6 +302,10 @@ def handle_prefix(message):
         return "!i"
     elif prefix == "!img":
         return "!img"
+    elif prefix == "!freemem" and message.author.name == "gapi505":
+        return "!freemem"
+    elif prefix == "!load" and message.author.name == "gapi505":
+        return "!load"
     else:
         return None
 
@@ -321,6 +325,10 @@ async def on_message(message):
         await text_pipeline(message)
     elif handle_prefix(message) == "!img":  # Manual image generation
         await manual_image_pipeline(message)
+    elif handle_prefix(message) == "!freemem":  # Free memory
+        free_memory()
+    elif handle_prefix(message) == "!load":  # Load the model
+        load_llm()
 
 
 client.run(TOKEN)
